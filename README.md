@@ -4,6 +4,9 @@
 
 # Table of contents
 
+- [About this app](#about-this-app)
+  - [Quickstart](#quickstart)
+  - [Project Architecture](#project-architecture)
 - [About me](#about-me)
 - [Technologies I placed my hands on](#installation)
   - [IDEs](#ides)
@@ -12,12 +15,59 @@
   - [Programming Languages](#programming-languages)
   - [Networking](#networking)
   - [Other tools](#other-tools)
-- [Projects](#projects)
+- [Pet-projects](#pet-projects)
   - [golang-url-shortener](#golang-url-shortener)
   - [server-checker](#server-checker)
   - [gymctl](#gymctl-coming-soon)
 - [Area of interests](#area-of-interests)
 - [Contacts](#contacts)
+
+## About this app
+
+Implemented RESTful API web service with two endpoints (`/info` and `/info/weather`) for retrieving weather forecast via VisualCrossing API.
+
+### Quickstart
+
+1. **Set up environment:** Create a `.env` file in the root directory:
+
+```env
+API_KEY=your_visual_crossing_api_key # default: EMPTY
+PORT=your_port                       # default: 8000
+AUTHOR=egor.volkov                   # me :O
+VERSION=0.3.0                        # default: 1.0.0
+SERVICE=weather                      # service name
+```
+
+2. **Run the service**:
+
+```bash
+go run main.go
+```
+
+### Project architechture
+
+### Entities
+
+- **weather.go**: `TemperatureStats` (average, median, min, max), `DayData` (avg temp, min temp, max temp)
+- **service.go**: `ServiceInfo` (version, serviceName, author)
+
+### Use cases
+
+- **weather_usecase.go**
+  - `GetStats`: app's business logic (average, median, min and max temperature estimation)
+
+### Adapters
+
+- **http_handler.go**
+  - `GetWeather`: handler to form URL from user request
+- **weather_api.go**
+  - `GetRawWeatherData`: function to send url request to VisualCrossing API and retrieve data
+
+### Infrastructure
+
+- **main.go**
+  - `main`: reading variables, dependency injection, starting Gin router
+  - `getEnv`: additional function for reading vars from .env
 
 ## About me
 
@@ -45,7 +95,7 @@ My hobby is doing sports such as lifting weights (going to the gym), running and
 
 <p alignh="left">
 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg" height="45"/>
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Font_Awesome_5_brands_freebsd.svg/640px-Font_Awesome_5_brands_freebsd.svg.png" height="45"/>
+<img src="https://www.vectorlogo.zone/logos/freebsd/freebsd-icon.svg" height="45"/>
 </p>
 
 ### Linux Distros
@@ -70,7 +120,7 @@ My hobby is doing sports such as lifting weights (going to the gym), running and
 
 <p alignh="left">
 <img src="https://eltex-co.com/images/rules/01.svg" height="50" width="50"/>
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Cisco_logo_blue_2016.svg/640px-Cisco_logo_blue_2016.svg.png" height="25"/>
+<img src="https://www.vectorlogo.zone/logos/cisco/cisco-ar21.svg" height="25"/>
 <img src="https://assets.streamlinehq.com/image/private/w_300,h_300,ar_1/f_auto/v1/icons/logos/mikrotik-9fxkorisqhnq5ppw9ory2o.png/mikrotik-w4y9rth430h5bcfzp9in8i.png?_a=DATAiZAAZAA0" height="45"/>
 <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/opnsense.svg" height="45"/>
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/VyOS_logo.svg/250px-VyOS_logo.svg.png?_=20251130143906" height="45"/>
@@ -82,12 +132,12 @@ My hobby is doing sports such as lifting weights (going to the gym), running and
 <p alignh="left">
 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" height="45"/>
 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" height="45"/>
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Git_icon.svg/640px-Git_icon.svg.png" height="45"/>
+<img src="https://git-scm.com/images/logos/downloads/Git-Icon-1788C.svg" height="45"/>
 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" height="45"/>
 <img src="https://upload.wikimedia.org/wikipedia/commons/c/c6/Wireshark_icon_new.png" height="45"/>
 </p>
 
-## Projects
+## Pet-projects
 
 ### golang-url-shortener
 
