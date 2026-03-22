@@ -1,0 +1,13 @@
+.env
+.gitignore
+.dockerignore
+.git
+.gitlab-ci.yml
+.go-version
+docker-compose.yml
+docker-compose.hardened.yml
+README.md
+FINDINGS.md
+sbom.json
+trivy.json
+api_key.txt

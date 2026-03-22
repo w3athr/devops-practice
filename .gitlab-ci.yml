@@ -5,6 +5,12 @@ include:
 
 variables:
   AUTHOR: "egor.volkov"
-  VERSION: "0.3.0"
+  VERSION: "0.4.0"
   SERVICE: "weather"
   PORT: "8000"
+
+before_script:
+  # Если переменная-файл API_KEY_FILE существует, копируем её в корень проекта
+  - if [ -f "$API_KEY_FILE" ]; then cp "$API_KEY_FILE" ./api_key.txt; fi
+  # На всякий случай экспортируем её как обычную переменную (для старых тестов)
+  - if [ -f "$API_KEY_FILE" ]; then export API_KEY=$(cat "$API_KEY_FILE"); fi

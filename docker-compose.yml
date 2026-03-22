@@ -1,0 +1,16 @@
+services:
+  weather-service:
+    image: "w3athr/weather-app:v3.2"
+    user: "1000:1000"
+    ports:
+      - "${PORT}:${PORT}"
+    environment:
+      - VERSION=${VERSION}
+      - AUTHOR=${AUTHOR}
+      - SERVICE=${SERVICE}
+      - PORT=${PORT}
+    secrets:
+      - weather_api_key
+secrets:
+  weather_api_key:
+    file: api_key.txt
