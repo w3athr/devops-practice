@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"app/internal/entity"
 	"app/internal/handler"
@@ -25,7 +26,7 @@ func main() {
 	}
 
 	// 2. Сборка слоев (Dependency Injection)
-	repo := repository.NewWeatherRepo(getEnv("API_KEY", "EMPTY"))
+	repo := repository.NewWeatherRepo(getAPIKey())
 	uc := usecase.NewWeatherUseCase(repo)
 	h := handler.NewWeatherHandler(uc, info)
 
@@ -48,4 +49,24 @@ func getEnv(key, defaultVal string) string {
 		return val
 	}
 	return defaultVal
+}
+
+func getAPIKey() string {
+	// 1. check is exists in docker secrets (for gitlab CI/CD)
+	secretPath := "/run/secrets/weather_api_key"
+	if data, err := os.ReadFile(secretPath); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+
+	// 2. check if exists in .env
+	if key := os.Getenv("API_KEY"); key != "" {
+		return key
+	}
+
+	// 3. check if exists in file
+	if data, err := os.ReadFile("api_key.txt"); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+
+	return ""
 }

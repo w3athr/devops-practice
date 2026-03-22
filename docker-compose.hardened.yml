@@ -1,0 +1,34 @@
+services:
+  weather-service:
+    image: "w3athr/weather-app:v3.2"
+    user: "1000:1000"
+    ports:
+      - "127.0.0.1:${PORT:-8000}:${PORT:-8000}"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - weather-app-network
+    environment:
+      - VERSION=${VERSION}
+      - AUTHOR=${AUTHOR}
+      - SERVICE=${SERVICE}
+      - PORT=${PORT}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+        reservations:
+          cpus: "0.25"
+          memory: 64M
+    secrets:
+      - weather_api_key
+networks:
+  weather-app-network:
+    driver: bridge
+secrets:
+  weather_api_key:
+    file: api_key.txt
