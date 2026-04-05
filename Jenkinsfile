@@ -50,18 +50,19 @@ pipeline {
                 }
             }
         }
-        stage('build') {
-            when {
-                beforeInput true
-                expression {
-                    return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
-                }
-            }
-            input {
-                message "Branch is main. Start image build manually?"
-                ok "Build"
-            }            
+        stage('build') {          
             steps {
+                script {
+                    def isMain = (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
+
+                    if (isMain) {
+                        timeout(time: 3, unit: 'MINUTES') {
+                            input message: "Main branch detected. Confirm image build ${env.IMAGE_NAME}:${env.IMAGE_TAG}?", ok: "Build"
+                        }
+                    } else {
+                        echo "Branch is not main, build starts automatically"
+                    }
+                }                
                 gitlabCommitStatus('build') {
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-pat',
