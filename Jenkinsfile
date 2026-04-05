@@ -5,7 +5,7 @@ pipeline {
         }
     }
     tools {
-        go '1.25.0'
+        go 'Go 1.25.0'
     }
     options {
         timestamps()
