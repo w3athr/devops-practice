@@ -70,6 +70,12 @@ pipeline {
             }
         }
         stage('deploy') {                           
+            when {
+                beforeInput true
+                expression {
+                    return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
+                }
+            }            
             environment {
                 WEATHER_API_KEY = credentials('weather-api-key')
             }
