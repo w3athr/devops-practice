@@ -22,7 +22,7 @@ pipeline {
     }   
     environment {
         AUTHOR = 'egor.volkov'
-        VERSION = '0.5.1'
+        VERSION = '0.5.2'
         SERVICE = 'weather'
         PORT = '8000'
         IMAGE_NAME = 'w3athr/weather-app'
