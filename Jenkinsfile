@@ -71,6 +71,7 @@ pipeline {
         }
         stage('deploy') {        
             when {
+                beforeInput true
                 expression {
                     return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
                 }
