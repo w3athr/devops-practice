@@ -69,16 +69,14 @@ pipeline {
                 }
             }
         }
-        stage('deploy') {        
-
-            input {
-                message "Deploy image ${env.IMAGE_NAME}:${env.IMAGE_TAG} to production?"
-                ok "Deploy"
-            }                     
+        stage('deploy') {                           
             environment {
                 WEATHER_API_KEY = credentials('weather-api-key')
             }
             steps {           
+                script {
+                    input message: "Deploy image ${env.IMAGE_NAME}:${env.IMAGE_TAG} to production?", ok: "Deploy"
+                }                
                 gitlabCommitStatus('deploy') {
                     sh '''
                     set -e
