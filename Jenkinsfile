@@ -51,6 +51,16 @@ pipeline {
             }
         }
         stage('build') {
+            when {
+                beforeInput true
+                expression {
+                    return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
+                }
+            }
+            input {
+                message "Branch is main. Start image build manually?"
+                ok "Build"
+            }            
             steps {
                 gitlabCommitStatus('build') {
                     withCredentials([usernamePassword(
