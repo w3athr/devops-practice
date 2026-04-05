@@ -70,12 +70,7 @@ pipeline {
             }
         }
         stage('deploy') {        
-            when {
-                beforeInput true
-                expression {
-                    return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
-                }
-            }  
+
             input {
                 message "Deploy image ${env.IMAGE_NAME}:${env.IMAGE_TAG} to production?"
                 ok "Deploy"
