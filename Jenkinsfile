@@ -74,15 +74,13 @@ pipeline {
                 expression {
                     return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
                 }
-            }
-        input {
-            message "Deploy image ${IMAGE_NAME}:${IMAGE_TAG} to production?"
-            ok "Deploy"
-        }            
+            }          
             environment {
                 WEATHER_API_KEY = credentials('weather-api-key')
             }
             steps {
+                input message: "Deploy image ${env.IMAGE_NAME}:${env.IMAGE_TAG} to production?", ok: "Deploy"                
+                
                 gitlabCommitStatus('deploy') {
                     sh '''
                     set -e
