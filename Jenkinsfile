@@ -70,23 +70,19 @@ pipeline {
             }
         }
         stage('deploy') {        
+            when {
+                expression {
+                    return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
+                }
+            }  
+            input {
+                message "Deploy image ${env.IMAGE_NAME}:${env.IMAGE_TAG} to production?"
+                ok "Deploy"
+            }                     
             environment {
                 WEATHER_API_KEY = credentials('weather-api-key')
             }
-            steps {
-                script {
-                    def shouldDeploy = (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
-                    
-                    if (!shouldDeploy) {
-                        gitlabCommitStatus('deploy') {
-                            echo 'Deploy skipped: not main branch'
-                        }
-                        return
-                    }
-                }
-
-                input message: "Deploy image ${env.IMAGE_NAME}:${env.IMAGE_TAG} to production?", ok: "Deploy"                
-                
+            steps {           
                 gitlabCommitStatus('deploy') {
                     sh '''
                     set -e
