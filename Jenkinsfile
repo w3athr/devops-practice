@@ -9,7 +9,7 @@ pipeline {
             steps {
                 echo "Building..."
                 sh '''
-                echo "doing build stuff. Push event"
+                echo "doing build stuff. Push event 2"
                 '''
             }
         }
