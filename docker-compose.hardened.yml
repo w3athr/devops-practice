@@ -1,6 +1,6 @@
 services:
   weather-service:
-    image: "w3athr/weather-app:v3.2"
+    image: "${IMAGE_NAME:-w3athr/weather-app}:${IMAGE_TAG:-v3.2}"
     user: "1000:1000"
     ports:
       - "127.0.0.1:${PORT:-8000}:${PORT:-8000}"
