@@ -1,121 +1,75 @@
-pipeline {
-    agent {
-        node {
-            label 'worker1-jobs'
-        }
-    }
-    tools {
-        go 'Go 1.25.0'
-    }
-    options {
-        timestamps()
-        disableConcurrentBuilds()
-        gitLabConnection('yadro_gitlab_connection')
-        gitlabBuilds(builds: ['lint', 'test', 'build', 'deploy'])
-    }
-    parameters {
-        string(
-            name: 'MANUAL_BRANCH',
-            defaultValue: 'main',
-            description: 'Ветка для ручного запуска. Для main оставь main.'
-        )
-    }   
-    environment {
-        AUTHOR = 'egor.volkov'
-        VERSION = '0.5.3'
-        SERVICE = 'weather'
-        PORT = '8000'
-        IMAGE_NAME = 'w3athr/weather-app'
-        IMAGE_TAG = "build-${env.BUILD_NUMBER}"
-    } 
-    stages {
-        stage('lint') {
-            steps {
-                gitlabCommitStatus('lint') {
-                    sh '''
-                    set -e
-                    go version
-                    go vet ./...
-                    '''
-                }
-            }
-        }
-        stage('test') {
-            steps {
-                gitlabCommitStatus('test') {
-                    sh '''
-                    set -e
-                    go test -v ./...
-                    '''
-                }
-            }
-        }
-        stage('build') {          
-            steps {
-                script {
-                    def isMain = (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
+@Library('jenkins_shared_library') _
 
-                    if (isMain) {
-                        timeout(time: 3, unit: 'MINUTES') {
-                            input message: "Main branch detected. Confirm image build ${env.IMAGE_NAME}:${env.IMAGE_TAG}?", ok: "Build"
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Static Checks') {
+            steps {
+                parallel(
+                    "Linting": {
+                        sh 'go vet ./...'
+                    },
+                    "SAST Scan": {
+                        script {
+                            common.runSAST()
                         }
-                    } else {
-                        echo "Branch is not main, build starts automatically"
                     }
-                }                
-                gitlabCommitStatus('build') {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-pat',
-                        usernameVariable: 'DOCKERHUB_USER',
-                        passwordVariable: 'DOCKERHUB_PASS'
-                    )]) {
-                        sh '''
-                        set -e
-                        echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                        docker logout
-                        '''
-                    }
+                )
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'sast-report.json', allowEmptyArchive: true
                 }
             }
         }
-        stage('deploy') {                           
+
+        stage('Build & Push Image') {
             when {
-                beforeInput true
-                expression {
-                    return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
+                anyOf {
+                    branch 'main'; tag 'v*'
+                    expression { env.CHANGE_ID != null } 
                 }
-            }            
-            environment {
-                WEATHER_API_KEY = credentials('weather-api-key')
             }
-            steps {           
+            steps {
                 script {
-                    input message: "Deploy image ${env.IMAGE_NAME}:${env.IMAGE_TAG} to production?", ok: "Deploy"
-                }                
-                gitlabCommitStatus('deploy') {
-                    sh '''
-                    set -e
-                    printf '%s' "$WEATHER_API_KEY" > api_key.txt                    
-                    chmod 600 api_key.txt
-                    docker pull ${IMAGE_NAME}:${IMAGE_TAG}
-                    docker compose -f docker-compose.hardened.yml up -d --force-recreate
-                    curl -fsS http://127.0.0.1:${PORT}/info
-                    '''
+                    def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
+                    
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                        sh "docker login -u ${USER} -p ${PASS}"
+                        sh "docker build -t w3athr/weather-app:${imageTag} ."
+                        sh "docker push w3athr/weather-app:${imageTag}"
+                    }
                 }
             }
         }
-    }
-    post {
-        always {
-            sh 'rm -f api_key.txt || true'
+
+        stage('Deploy to Staging') {
+            when { branch 'main' }
+            steps {
+                build job: 'deploy-job', 
+                    parameters: [
+                        string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
+                        string(name: 'ENVIRONMENT', value: 'staging')
+                    ]
+            }
         }
-        success {
-            echo 'Pipeline finished successfully'
-        }
-        failure {
-            echo 'Pipeline failed'
+
+        stage('Deploy to Production') {
+            when { tag "v*" } 
+            steps {
+                build job: 'deploy-job', 
+                    parameters: [
+                        string(name: 'IMAGE_TAG', value: "${env.TAG_NAME}"),
+                        string(name: 'ENVIRONMENT', value: 'production')
+                    ]
+            }
         }
     }
 }
