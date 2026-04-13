@@ -3,29 +3,31 @@
 pipeline {
     agent any
 
+    options {
+        timestamps()
+        gitLabConnection('yadro_gitlab_connection') 
+        gitlabBuilds(builds: ['quality', 'build', 'deploy'])
+    }
+
     tools {
         go 'Go 1.25.0'
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Static Checks') {
             steps {
-                parallel(
-                    "Linting": {
-                        sh 'go vet ./...'
-                    },
-                    "SAST Scan": {
-                        script {
-                            runSAST.runSAST()
+                gitlabCommitStatus('quality') {
+                    parallel(
+                        "Linting": {
+                            sh 'go vet ./...'
+                        },
+                        "SAST Scan": {
+                            script {
+                                runSAST.runSAST()
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
             post {
                 always {
@@ -37,43 +39,62 @@ pipeline {
         stage('Build & Push Image') {
             when {
                 anyOf {
-                    branch 'main'; tag 'v*'
-                    expression { env.CHANGE_ID != null } 
+                    branch 'main'
+                    tag 'v*'
+                    branch 'e.volkov/upgrade_Jenkinsfile' 
+                    expression { env.CHANGE_ID != null }
                 }
             }
             steps {
-                script {
-                    def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
-                    
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                        sh "docker login -u ${USER} -p ${PASS}"
-                        sh "docker build -t w3athr/weather-app:${imageTag} ."
-                        sh "docker push w3athr/weather-app:${imageTag}"
+                gitlabCommitStatus('build') {
+                    script {
+                        def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
+                        
+                        withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                            sh "docker login -u ${USER} -p ${PASS}"
+                            sh "docker build -t w3athr/weather-app:${imageTag} ."
+                            sh "docker push w3athr/weather-app:${imageTag}"
+                        }
                     }
                 }
             }
         }
 
         stage('Deploy to Staging') {
-            when { branch 'main' }
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'e.volkov/upgrade_Jenkinsfile' 
+                }
+            }
             steps {
-                build job: 'deploy-job', 
-                    parameters: [
-                        string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
-                        string(name: 'ENVIRONMENT', value: 'staging')
-                    ]
+                gitlabCommitStatus('deploy') {
+                    build job: 'deploy-job', 
+                        parameters: [
+                            string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
+                            string(name: 'ENVIRONMENT', value: 'staging')
+                        ]
+                }
             }
         }
 
         stage('Deploy to Production') {
             when { tag "v*" } 
             steps {
-                build job: 'deploy-job', 
-                    parameters: [
-                        string(name: 'IMAGE_TAG', value: "${env.TAG_NAME}"),
-                        string(name: 'ENVIRONMENT', value: 'production')
-                    ]
+                gitlabCommitStatus('deploy') {
+                    build job: 'deploy-job', 
+                        parameters: [
+                            string(name: 'IMAGE_TAG', value: "${env.TAG_NAME}"),
+                            string(name: 'ENVIRONMENT', value: 'production')
+                        ]
+                }
             }
+        }
+    }
+
+    post {
+        failure {
+            updateGitlabCommitStatus name: 'quality', state: 'failed'
         }
     }
 }
