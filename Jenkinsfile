@@ -41,7 +41,6 @@ pipeline {
                 anyOf {
                     branch 'main'
                     tag 'v*'
-                    branch 'e.volkov/upgrade_Jenkinsfile'
                     expression { env.CHANGE_ID != null } 
                 }
             }
@@ -61,12 +60,7 @@ pipeline {
         }
 
         stage('Deploy to Staging') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'e.volkov/upgrade_Jenkinsfile'
-                }
-            }
+            when { branch 'main' }
             steps {
                 script {
                     gitlabCommitStatus('deploy') {
