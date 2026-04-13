@@ -3,6 +3,10 @@
 pipeline {
     agent any
 
+    tools {
+        go 'Go 1.25.0'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -18,7 +22,7 @@ pipeline {
                     },
                     "SAST Scan": {
                         script {
-                            common.runSAST()
+                            runSAST()
                         }
                     }
                 )
