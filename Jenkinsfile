@@ -70,7 +70,7 @@ pipeline {
             steps {
                 script {
                     gitlabCommitStatus('deploy') {
-                        build job: 'deploy-job', 
+                        build job: 'parameterized_pipeline', 
                             parameters: [
                                 string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
                                 string(name: 'ENVIRONMENT', value: 'staging')
