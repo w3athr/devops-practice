@@ -16,17 +16,17 @@ pipeline {
     stages {
         stage('Static Checks') {
             steps {
-                gitlabCommitStatus('quality') {
-                    parallel(
-                        "Linting": {
-                            sh 'go vet ./...'
-                        },
-                        "SAST Scan": {
-                            script {
+                script {
+                    gitlabCommitStatus('quality') {
+                        parallel(
+                            "Linting": {
+                                sh 'go vet ./...'
+                            },
+                            "SAST Scan": {
                                 runSAST.runSAST()
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
             post {
@@ -41,13 +41,13 @@ pipeline {
                 anyOf {
                     branch 'main'
                     tag 'v*'
-                    branch 'e.volkov/upgrade_Jenkinsfile' 
-                    expression { env.CHANGE_ID != null }
+                    branch 'e.volkov/upgrade_Jenkinsfile'
+                    expression { env.CHANGE_ID != null } 
                 }
             }
             steps {
-                gitlabCommitStatus('build') {
-                    script {
+                script {
+                    gitlabCommitStatus('build') {
                         def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
                         
                         withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
@@ -64,16 +64,18 @@ pipeline {
             when {
                 anyOf {
                     branch 'main'
-                    branch 'e.volkov/upgrade_Jenkinsfile' 
+                    branch 'e.volkov/upgrade_Jenkinsfile'
                 }
             }
             steps {
-                gitlabCommitStatus('deploy') {
-                    build job: 'deploy-job', 
-                        parameters: [
-                            string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
-                            string(name: 'ENVIRONMENT', value: 'staging')
-                        ]
+                script {
+                    gitlabCommitStatus('deploy') {
+                        build job: 'deploy-job', 
+                            parameters: [
+                                string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
+                                string(name: 'ENVIRONMENT', value: 'staging')
+                            ]
+                    }
                 }
             }
         }
@@ -81,12 +83,14 @@ pipeline {
         stage('Deploy to Production') {
             when { tag "v*" } 
             steps {
-                gitlabCommitStatus('deploy') {
-                    build job: 'deploy-job', 
-                        parameters: [
-                            string(name: 'IMAGE_TAG', value: "${env.TAG_NAME}"),
-                            string(name: 'ENVIRONMENT', value: 'production')
-                        ]
+                script {
+                    gitlabCommitStatus('deploy') {
+                        build job: 'deploy-job', 
+                            parameters: [
+                                string(name: 'IMAGE_TAG', value: "${env.TAG_NAME}"),
+                                string(name: 'ENVIRONMENT', value: 'production')
+                            ]
+                    }
                 }
             }
         }
