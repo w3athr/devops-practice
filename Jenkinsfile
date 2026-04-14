@@ -36,54 +36,51 @@ pipeline {
             }
         }
 
-        stage('Build & Push Image') {
-            when {
-                anyOf {
-                    branch 'main'
-                    tag 'v*'
-                    expression { env.CHANGE_ID != null } 
-                }
-            }
+        stage('Promotion & Deployment') {
             steps {
                 script {
-                    gitlabCommitStatus('build') {
-                        def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
-                        
-                        withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                            sh "docker login -u ${USER} -p ${PASS}"
-                            sh "docker build -t w3athr/weather-app:${imageTag} ."
-                            sh "docker push w3athr/weather-app:${imageTag}"
+                    // 1. Build & Push Image
+                    conditionalStage(
+                        name: 'Build & Push Image',
+                        condition: (env.BRANCH_NAME == 'main' || env.TAG_NAME || env.CHANGE_ID)
+                    ) {
+                        gitlabCommitStatus('build') {
+                            def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
+                            
+                            withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                                sh "docker login -u ${USER} -p ${PASS}"
+                                sh "docker build -t w3athr/weather-app:${imageTag} ."
+                                sh "docker push w3athr/weather-app:${imageTag}"
+                            }
                         }
                     }
-                }
-            }
-        }
 
-        stage('Deploy to Staging') {
-            when { branch 'main' }
-            steps {
-                script {
-                    gitlabCommitStatus('deploy') {
-                        build job: 'parameterized_pipeline', 
-                            parameters: [
-                                string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
-                                string(name: 'ENVIRONMENT', value: 'staging')
-                            ]
+                    // 2. Deploy to Staging
+                    conditionalStage(
+                        name: 'Deploy to Staging',
+                        condition: (env.BRANCH_NAME == 'main')
+                    ) {
+                        gitlabCommitStatus('deploy') {
+                            build job: 'parameterized_pipeline', 
+                                parameters: [
+                                    string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
+                                    string(name: 'ENVIRONMENT', value: 'staging')
+                                ]
+                        }
                     }
-                }
-            }
-        }
 
-        stage('Deploy to Production') {
-            when { tag "v*" } 
-            steps {
-                script {
-                    gitlabCommitStatus('deploy') {
-                        build job: 'parameterized_pipeline', 
-                            parameters: [
-                                string(name: 'IMAGE_TAG', value: "${env.TAG_NAME}"),
-                                string(name: 'ENVIRONMENT', value: 'production')
-                            ]
+                    // 3. Deploy to Production
+                    conditionalStage(
+                        name: 'Deploy to Production',
+                        condition: (env.TAG_NAME != null)
+                    ) {
+                        gitlabCommitStatus('deploy') {
+                            build job: 'parameterized_pipeline', 
+                                parameters: [
+                                    string(name: 'IMAGE_TAG', value: "${env.TAG_NAME}"),
+                                    string(name: 'ENVIRONMENT', value: 'production')
+                                ]
+                        }
                     }
                 }
             }
