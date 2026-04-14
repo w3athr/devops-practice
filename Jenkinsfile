@@ -6,7 +6,6 @@ pipeline {
     options {
         timestamps()
         gitLabConnection('yadro_gitlab_connection') 
-        gitlabBuilds(builds: ['quality', 'build', 'deploy'])
     }
 
     tools {
@@ -42,7 +41,8 @@ pipeline {
                     // 1. Build & Push Image
                     conditionalStage(
                         name: 'Build & Push Image',
-                        condition: (env.BRANCH_NAME == 'main' || env.TAG_NAME || env.CHANGE_ID)
+                        condition: (env.BRANCH_NAME == 'main' || env.TAG_NAME || env.CHANGE_ID),
+                        gitlabStatus: 'build' 
                     ) {
                         gitlabCommitStatus('build') {
                             def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
@@ -58,7 +58,8 @@ pipeline {
                     // 2. Deploy to Staging
                     conditionalStage(
                         name: 'Deploy to Staging',
-                        condition: (env.BRANCH_NAME == 'main')
+                        condition: (env.BRANCH_NAME == 'main'),
+                        gitlabStatus: 'deploy'
                     ) {
                         gitlabCommitStatus('deploy') {
                             build job: 'parameterized_pipeline', 
@@ -68,11 +69,12 @@ pipeline {
                                 ]
                         }
                     }
-                    
+
                     // 3. Deploy to Production
                     conditionalStage(
                         name: 'Deploy to Production',
-                        condition: (env.TAG_NAME != null)
+                        condition: (env.TAG_NAME != null),
+                        gitlabStatus: 'deploy'
                     ) {
                         gitlabCommitStatus('deploy') {
                             build job: 'parameterized_pipeline', 
