@@ -1,121 +1,70 @@
-pipeline {
-    agent {
-        node {
-            label 'worker1-jobs'
-        }
-    }
-    tools {
-        go 'Go 1.25.0'
-    }
-    options {
-        timestamps()
-        disableConcurrentBuilds()
-        gitLabConnection('yadro_gitlab_connection')
-        gitlabBuilds(builds: ['lint', 'test', 'build', 'deploy'])
-    }
-    parameters {
-        string(
-            name: 'MANUAL_BRANCH',
-            defaultValue: 'main',
-            description: 'Ветка для ручного запуска. Для main оставь main.'
-        )
-    }   
-    environment {
-        AUTHOR = 'egor.volkov'
-        VERSION = '0.5.3'
-        SERVICE = 'weather'
-        PORT = '8000'
-        IMAGE_NAME = 'w3athr/weather-app'
-        IMAGE_TAG = "build-${env.BUILD_NUMBER}"
-    } 
-    stages {
-        stage('lint') {
-            steps {
-                gitlabCommitStatus('lint') {
-                    sh '''
-                    set -e
-                    go version
-                    go vet ./...
-                    '''
-                }
-            }
-        }
-        stage('test') {
-            steps {
-                gitlabCommitStatus('test') {
-                    sh '''
-                    set -e
-                    go test -v ./...
-                    '''
-                }
-            }
-        }
-        stage('build') {          
-            steps {
-                script {
-                    def isMain = (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
+@Library('jenkins_shared_library') _
 
-                    if (isMain) {
-                        timeout(time: 3, unit: 'MINUTES') {
-                            input message: "Main branch detected. Confirm image build ${env.IMAGE_NAME}:${env.IMAGE_TAG}?", ok: "Build"
-                        }
-                    } else {
-                        echo "Branch is not main, build starts automatically"
+node {
+    properties([gitLabConnection('yadro_gitlab_connection')])
+
+    timestamps { 
+        def goHome = tool 'Go 1.25.0'
+        
+        withEnv(["PATH+GO=${goHome}/bin"]) {
+            try {
+                stage('Checkout') {
+                    checkout scm
+                }
+
+                stage('Static Checks') {
+                    gitlabCommitStatus('quality') {
+                        parallel(
+                            "Linting": { 
+                                sh 'go vet ./...' 
+                            },
+                            "SAST Scan": { 
+                                runSAST() 
+                            }
+                        )
                     }
-                }                
-                gitlabCommitStatus('build') {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-pat',
-                        usernameVariable: 'DOCKERHUB_USER',
-                        passwordVariable: 'DOCKERHUB_PASS'
-                    )]) {
-                        sh '''
-                        set -e
-                        echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                        docker logout
-                        '''
+                }
+
+                def isTag = (env.TAG_NAME != null)
+                def isMain = (env.BRANCH_NAME == 'main')
+                def isMR = (env.CHANGE_ID != null)
+                
+                conditionalStage(
+                    name: 'Build & Push Image',
+                    condition: (isMain || isTag || isMR),
+                    gitlabStatus: 'build'
+                ) {
+                    def imageTag = env.TAG_NAME ?: (isMR ? "mr-${env.CHANGE_ID}" : "build-${env.BUILD_NUMBER}")
+                    
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                        sh "docker login -u ${USER} -p ${PASS}"
+                        sh "docker build -t w3athr/weather-app:${imageTag} ."
+                        sh "docker push w3athr/weather-app:${imageTag}"
                     }
                 }
-            }
-        }
-        stage('deploy') {                           
-            when {
-                beforeInput true
-                expression {
-                    return (env.gitlabBranch == 'main') || (!env.gitlabBranch && params.MANUAL_BRANCH == 'main')
+
+                conditionalStage(
+                    name: isTag ? "Deploy to Production" : "Deploy to Staging",
+                    condition: (isTag || isMain),
+                    gitlabStatus: 'deploy'
+                ) {
+                    def targetEnv = isTag ? 'production' : 'staging'
+                    def targetTag = isTag ? env.TAG_NAME : "build-${env.BUILD_NUMBER}"
+
+                    build job: 'parameterized_pipeline',
+                        parameters: [
+                            string(name: 'IMAGE_TAG', value: targetTag),
+                            string(name: 'ENVIRONMENT', value: targetEnv)
+                        ]
                 }
-            }            
-            environment {
-                WEATHER_API_KEY = credentials('weather-api-key')
+
+            } catch (Exception e) {
+                updateGitlabCommitStatus name: 'quality', state: 'failed'
+                echo "Pipeline failed with error: ${e.message}"
+                throw e 
+            } finally {
+                archiveArtifacts artifacts: 'sast-report.json', allowEmptyArchive: true
             }
-            steps {           
-                script {
-                    input message: "Deploy image ${env.IMAGE_NAME}:${env.IMAGE_TAG} to production?", ok: "Deploy"
-                }                
-                gitlabCommitStatus('deploy') {
-                    sh '''
-                    set -e
-                    printf '%s' "$WEATHER_API_KEY" > api_key.txt                    
-                    chmod 600 api_key.txt
-                    docker pull ${IMAGE_NAME}:${IMAGE_TAG}
-                    docker compose -f docker-compose.hardened.yml up -d --force-recreate
-                    curl -fsS http://127.0.0.1:${PORT}/info
-                    '''
-                }
-            }
-        }
-    }
-    post {
-        always {
-            sh 'rm -f api_key.txt || true'
-        }
-        success {
-            echo 'Pipeline finished successfully'
-        }
-        failure {
-            echo 'Pipeline failed'
         }
     }
 }
