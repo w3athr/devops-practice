@@ -22,7 +22,7 @@ pipeline {
                                 sh 'go vet ./...'
                             },
                             "SAST Scan": {
-                                runSAST.runSAST()
+                                runSAST()
                             }
                         )
                     }
@@ -54,33 +54,23 @@ pipeline {
                             }
                         }
                     }
+                    // 2. Deploy to Prod/Staging
+                    def isTag = (env.TAG_NAME != null)
+                    def isMain = (env.BRANCH_NAME == 'main')
 
-                    // 2. Deploy to Staging
                     conditionalStage(
-                        name: 'Deploy to Staging',
-                        condition: (env.BRANCH_NAME == 'main'),
+                        name: isTag ? "Deploy to Production" : "Deploy to Staging",
+                        condition: (isTag || isMain),
                         gitlabStatus: 'deploy'
                     ) {
-                        gitlabCommitStatus('deploy') {
-                            build job: 'parameterized_pipeline', 
-                                parameters: [
-                                    string(name: 'IMAGE_TAG', value: "build-${env.BUILD_NUMBER}"),
-                                    string(name: 'ENVIRONMENT', value: 'staging')
-                                ]
-                        }
-                    }
+                        def targetEnv = isTag ? 'production' : 'staging'
+                        def targetTag = isTag ? env.TAG_NAME : "build-${env.BUILD_NUMBER}"
 
-                    // 3. Deploy to Production
-                    conditionalStage(
-                        name: 'Deploy to Production',
-                        condition: (env.TAG_NAME != null),
-                        gitlabStatus: 'deploy'
-                    ) {
                         gitlabCommitStatus('deploy') {
-                            build job: 'parameterized_pipeline', 
+                            build job: 'parameterized_pipeline',
                                 parameters: [
-                                    string(name: 'IMAGE_TAG', value: "${env.TAG_NAME}"),
-                                    string(name: 'ENVIRONMENT', value: 'production')
+                                    string(name: 'IMAGE_TAG', value: targetTag),
+                                    string(name: 'ENVIRONMENT', value: targetEnv)
                                 ]
                         }
                     }
@@ -88,6 +78,7 @@ pipeline {
             }
         }
     }
+}
 
     post {
         failure {
