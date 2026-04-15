@@ -44,17 +44,15 @@ pipeline {
                         condition: (env.BRANCH_NAME == 'main' || env.TAG_NAME || env.CHANGE_ID),
                         gitlabStatus: 'build' 
                     ) {
-                        gitlabCommitStatus('build') {
-                            def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
-                            
-                            withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                                sh "docker login -u ${USER} -p ${PASS}"
-                                sh "docker build -t w3athr/weather-app:${imageTag} ."
-                                sh "docker push w3athr/weather-app:${imageTag}"
-                            }
+                        def imageTag = env.TAG_NAME ?: "build-${env.BUILD_NUMBER}"
+                        
+                        withCredentials([usernamePassword(credentialsId: 'dockerhub_pat', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                            sh "docker login -u ${USER} -p ${PASS}"
+                            sh "docker build -t w3athr/weather-app:${imageTag} ."
+                            sh "docker push w3athr/weather-app:${imageTag}"
                         }
                     }
-                    
+
                     // 2. Deploy to Prod/Staging
                     def isTag = (env.TAG_NAME != null)
                     def isMain = (env.BRANCH_NAME == 'main')
@@ -67,19 +65,16 @@ pipeline {
                         def targetEnv = isTag ? 'production' : 'staging'
                         def targetTag = isTag ? env.TAG_NAME : "build-${env.BUILD_NUMBER}"
 
-                        gitlabCommitStatus('deploy') {
-                            build job: 'parameterized_pipeline',
-                                parameters: [
-                                    string(name: 'IMAGE_TAG', value: targetTag),
-                                    string(name: 'ENVIRONMENT', value: targetEnv)
-                                ]
-                        }
+                        build job: 'parameterized_pipeline',
+                            parameters: [
+                                string(name: 'IMAGE_TAG', value: targetTag),
+                                string(name: 'ENVIRONMENT', value: targetEnv)
+                            ]
                     }
                 }
             }
         }
     }
-}
 
     post {
         failure {
