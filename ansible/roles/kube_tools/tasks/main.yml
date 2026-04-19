@@ -1,0 +1,29 @@
+---
+- name: Add Kubernetes GPG key
+  ansible.builtin.get_url:
+    url: "{{ k8s_repo_url }}/Release.key"
+    dest: /tmp/k8s-release.key
+    mode: "0644"
+
+- name: Dearmor Kubernetes GPG key
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/k8s-release.key
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] {{ k8s_repo_url }}/ /"
+    filename: kubernetes
+    state: present
+
+- name: Install K8s tools
+  ansible.builtin.apt:
+    name: [kubelet, kubeadm, kubectl]
+    state: present
+    update_cache: yes
+
+- name: Hold K8s tools versions
+  ansible.builtin.dpkg_selection:
+    name: "{{ item }}"
+    selection: hold
+  loop: [kubelet, kubeadm, kubectl]

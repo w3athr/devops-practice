@@ -1,0 +1,41 @@
+---
+- name: Install dependencies
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, gnupg2, software-properties-common]
+    state: present
+    update_cache: yes
+
+- name: Create keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Add CRI-O GPG key
+  ansible.builtin.get_url:
+    url: "{{ crio_repo_base_url }}/Release.key"
+    dest: /tmp/crio-release.key
+    mode: "0644"
+
+- name: Dearmor CRI-O GPG key
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg /tmp/crio-release.key
+    creates: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+
+- name: Add CRI-O repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] {{ crio_repo_base_url }}/ /"
+    filename: cri-o
+    state: present
+
+- name: Install CRI-O
+  ansible.builtin.apt:
+    name: cri-o
+    state: present
+    update_cache: yes
+
+- name: Start and enable CRI-O
+  ansible.builtin.systemd:
+    name: crio
+    enabled: yes
+    state: started
