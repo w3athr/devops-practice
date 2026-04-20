@@ -1,7 +1,7 @@
 ---
 - name: Disable Swap
   ansible.builtin.command: swapoff -a
-  when: ansible_swaptotal_mb > 0
+  when: ansible_facts['swaptotal_mb'] > 0
 
 - name: Remove Swap from fstab
   ansible.builtin.lineinfile:
@@ -14,6 +14,7 @@
     name: "{{ item }}"
     state: present
   loop: [overlay, br_netfilter]
+  when: ansible_facts['virtualization_type'] != 'docker'
 
 - name: Configure Sysctl for K8s
   ansible.posix.sysctl:
@@ -26,3 +27,4 @@
     - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
     - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
     - { key: "net.ipv4.ip_forward", value: "1" }
+  when: ansible_facts['virtualization_type'] != 'docker'
