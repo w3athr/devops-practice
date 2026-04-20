@@ -1,0 +1,12 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Update apt cache and install requirements
+      ansible.builtin.apt:
+        name:
+          - sudo
+          - kmod
+        state: present
+        update_cache: true

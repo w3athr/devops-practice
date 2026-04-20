@@ -1,0 +1,6 @@
+---
+- name: Converge Node Prep
+  hosts: all
+  become: true
+  roles:
+    - name: "../../.."
