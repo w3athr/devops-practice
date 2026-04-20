@@ -1,0 +1,8 @@
+---
+- name: Deploy Kubernetes Nodes
+  hosts: k8s_nodes
+  become: yes
+  roles:
+    - k8s_node_prep
+    - cri_o
+    - kube_tools

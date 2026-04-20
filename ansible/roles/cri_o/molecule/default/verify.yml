@@ -1,0 +1,23 @@
+---
+- name: Verify CRI-O installation
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check if CRI-O binary exists
+      ansible.builtin.stat:
+        path: /usr/bin/crio
+      register: crio_bin
+
+    - name: Assert CRI-O binary is present
+      ansible.builtin.assert:
+        that: crio_bin.stat.exists
+        fail_msg: "CRI-O binary not found in /usr/bin/crio"
+
+    - name: Check if CRI-O config directory exists
+      ansible.builtin.stat:
+        path: /etc/crio
+      register: crio_conf
+
+    - name: Assert config directory is present
+      ansible.builtin.assert:
+        that: crio_conf.stat.exists

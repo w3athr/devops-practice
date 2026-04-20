@@ -1,0 +1,6 @@
+---
+- name: Converge Kube Tools
+  hosts: all
+  become: true
+  roles:
+    - name: "../../.."

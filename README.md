@@ -7,6 +7,7 @@
 - [About this app](#about-this-app)
   - [Quickstart](#quickstart)
   - [Project Architecture](#project-architecture)
+  - [Ansible usage](#ansible-usage)
 - [About me](#about-me)
 - [Technologies I placed my hands on](#installation)
   - [IDEs](#ides)
@@ -68,6 +69,85 @@ go run main.go
 - **main.go**
   - `main`: reading variables, dependency injection, starting Gin router
   - `getEnv`: additional function for reading vars from .env
+
+## Ansible usage
+
+### Step 1: Install Dependencies
+
+Download required collections from GitHub/Galaxy:
+
+```bash
+ansible-galaxy install -r requirements.yml
+```
+
+### Step 2: Configure Inventory
+
+Edit inventory.ini with your server IPs:
+
+```ini
+[k8s_nodes]
+worker1 ansible_host=10.184.0.24 ansible_user=worker ansible_ssh_private_key_file=~/.ssh/yadro_worker1_ed25519
+worker2 ansible_host=10.184.0.23 ansible_user=worker ansible_ssh_private_key_file=~/.ssh/yadro_worker2_ed25519
+master ansible_host=10.184.0.25 ansible_user=master ansible_ssh_private_key_file=~/.ssh/yadro_master_ed25519
+
+
+[k8s_nodes:vars]
+ansible_python_interpreter=/usr/bin/python3
+```
+
+### Step 3: Run Playbook
+
+Execute the automation:
+
+```bash
+ansible-playbook -i inventory.ini playbook.yml -K
+
+-K will prompt for the sudo password (of remote nodes)
+```
+
+### 4. Roles Overview
+
+k8s_node_prep
+
+- Disables SWAP
+- Loads overlay and br_netfilter modules
+- Sets net.ipv4.ip_forward = 1
+- Terminates conflicting apt background processes
+
+cri_o
+
+- Default version: 1.33.
+- Adds OpenSUSE OBS repositories.
+- Installs and starts the crio service.
+
+kube_tools
+
+- Default version: 1.33.
+- Uses Yandex Mirrors for stability.
+- Installs kubeadm, kubelet, kubectl.
+
+### 5. Testing with Molecule
+
+Molecule is used to test the cri_o role in a Docker container.
+
+#### Setup Environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install molecule molecule-plugins[docker] ansible-core
+```
+
+#### Run Tests
+
+Go to the role directory and start the test cycle:
+
+```
+cd ansible/roles/cri_o
+molecule test
+```
+
+What happens: Molecule creates a jrei/systemd-ubuntu container, installs sudo via prepare.yml, and applies the role. The test verifies syntax, installation, and idempotency.
 
 ## About me
 

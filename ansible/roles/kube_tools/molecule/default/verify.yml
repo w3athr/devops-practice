@@ -1,0 +1,20 @@
+---
+- name: Verify Kube Tools
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Check kubeadm
+      ansible.builtin.command: kubeadm version
+      register: kubeadm_check
+      changed_when: false
+
+    - name: Check kubelet
+      ansible.builtin.command: kubelet --version
+      register: kubelet_check
+      changed_when: false
+
+    - name: Assert tools are installed
+      ansible.builtin.assert:
+        that:
+          - kubeadm_check.rc == 0
+          - kubelet_check.rc == 0
