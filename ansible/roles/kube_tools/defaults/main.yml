@@ -1,3 +1,3 @@
 ---
 k8s_version: "v1.33"
-k8s_repo_url: "https://pkgs.k8s.io/core:/stable:/{{ k8s_version }}/deb"
+k8s_repo_url: "https://mirror.yandex.ru/mirrors/pkgs.k8s.io/core/stable/{{ k8s_version }}/deb/"
