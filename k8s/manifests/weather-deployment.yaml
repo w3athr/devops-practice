@@ -1,0 +1,35 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-deployment
+  namespace: weather-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: weather
+  template:
+    metadata:
+      labels:
+        app: weather
+    spec:
+      containers:
+      - name: weather-app
+        image: w3athr/weather-app:v3.3
+        ports:
+          - containerPort: 8000
+        env:
+        - name: AUTHOR
+          value: "egor.volkov"
+        - name: VERSION 
+          value: "3.3.0"
+        - name: SERVICE 
+          value: weather
+        - name: PORT
+          value: "8000"
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-key-secret
+              key: api-key
