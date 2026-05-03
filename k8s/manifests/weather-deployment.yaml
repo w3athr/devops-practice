@@ -14,22 +14,34 @@ spec:
       labels:
         app: weather
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - weather
+                topologyKey: "kubernetes.io/hostname"
       containers:
-      - name: weather-app
-        image: w3athr/weather-app:v3.3
-        ports:
-          - containerPort: 8000
-        env:
-        - name: AUTHOR
-          value: "egor.volkov"
-        - name: VERSION 
-          value: "3.3.0"
-        - name: SERVICE 
-          value: weather
-        - name: PORT
-          value: "8000"
-        - name: API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: api-key-secret
-              key: api-key
+        - name: weather-app
+          image: w3athr/weather-app:v3.3
+          ports:
+            - containerPort: 8000
+          env:
+            - name: AUTHOR
+              value: "egor.volkov"
+            - name: VERSION
+              value: "3.3.0"
+            - name: SERVICE
+              value: weather
+            - name: PORT
+              value: "8000"
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-key-secret
+                  key: api-key
