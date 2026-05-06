@@ -8,6 +8,7 @@
   - [Quickstart](#quickstart)
   - [Project Architecture](#project-architecture)
   - [Ansible usage](#ansible-usage)
+  - [Kubernetes deploy](#kubernetes-deploy)
 - [About me](#about-me)
 - [Technologies I placed my hands on](#installation)
   - [IDEs](#ides)
@@ -148,6 +149,85 @@ molecule test
 ```
 
 What happens: Molecule creates a jrei/systemd-ubuntu container, installs sudo via prepare.yml, and applies the role. The test verifies syntax, installation, and idempotency.
+
+## Kubernetes deploy
+
+The application is deployed in a high-availability cluster using **Traefik** as the Ingress Controller.
+
+### 1. High Availability
+
+- **Replicas**: The `weather-deployment` runs **2 replicas** distributed across worker nodes. This ensures that the service remains available even if a single pod or node fails.
+- **Namespaces**: Resources are logically isolated:
+  - `traefik`: Infrastructure
+  - `weather-app`: Application, Services, and Secrets.
+
+### 2. Networking & External Access
+
+Since the cluster is running on private IPs, external access is provided via **NodePort** services:
+
+- **HTTP**: `http://<NODE_IP>:31300`
+- **HTTPS**: `https://<NODE_IP>:31301`
+- **Traefik Dashboard**: `http://<NODE_IP>:31300/dashboard/`
+
+### 3. Ingress & Security (HTTPS)
+
+The project includes a full TLS termination setup:
+
+- **TLS Secret**: A self-signed certificate is stored in a Kubernetes Secret to encrypt traffic.
+- **HTTPS Redirection**: A Traefik `Middleware` using **RedirectRegex** is implemented. It automatically redirects users from HTTP to HTTPS, specifically handling the transition between NodePorts (`31300` -> `31301`).
+- **TLSStore**: A custom `TLSStore` is configured to serve our certificate by default, preventing Traefik from using its internal "Default Cert" when accessing via IP addresses.
+
+### 4. Applied Approach (Why this way?)
+
+| Feature                | Choice               | Why?                                                                                                        |
+| :--------------------- | :------------------- | :---------------------------------------------------------------------------------------------------------- |
+| **Ingress Controller** | **Traefik**          | Modern, lightweight, and supports CRDs (IngressRoute, Middleware) for fine-grained traffic control.         |
+| **Service Type**       | **NodePort**         | Ideal for clusters without an integrated Cloud LoadBalancer. It maps ports across all cluster nodes.        |
+| **Redirection**        | **Regex Middleware** | Standard HTTPS redirects often fail with custom ports. Regex allows precise rewriting of the URL and Port.  |
+| **Security**           | **TLS Termination**  | Security is handled at the Ingress level (edge), so the Go application doesn't need to manage certificates. |
+
+### Deployment Steps
+
+1. Create **namespaces**:
+
+```bash
+kubectl create namespace traefik
+kubectl create namespace weather-app
+```
+
+2. **Install Traefik** (via Helm):
+
+```bash
+helm install traefik traefik/traefik \
+--namespace traefik \
+--set ports.web.nodePort=31300 \
+--set ports.websecure.nodePort=31301 \
+--set service.type=NodePort
+```
+
+3. Generate **self-signed certificate**:
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+-keyout tls.key -out tls.crt \
+-subj "/CN=weather.local"
+```
+
+4. Add **k8s secrets** (VisualCrossing API-KEY and certificate):
+
+```bash
+kubectl create secret tls weather-tls-secret --key tls.key --cert tls.crt -n weather-app
+kubectl create secret generic api-key-secret \
+--from-literal=api-key=<YOUR-API-KEY> \
+-n weather-app
+```
+
+5. Apply all **manifests**:
+
+```bash
+cd k8s/manifests
+kubectl apply -f . -R
+```
 
 ## About me
 
