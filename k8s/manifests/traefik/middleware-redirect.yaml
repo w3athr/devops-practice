@@ -1,0 +1,10 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-to-https
+  namespace: weather-app
+spec:
+  redirectRegex:
+    regex: "^http://([^/]+):31300/(.*)"
+    replacement: "https://$1:31301/$2"
+    permanent: true

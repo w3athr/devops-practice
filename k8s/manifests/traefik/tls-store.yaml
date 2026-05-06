@@ -1,0 +1,8 @@
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: weather-app
+spec:
+  defaultCertificate:
+    secretName: weather-tls-secret
