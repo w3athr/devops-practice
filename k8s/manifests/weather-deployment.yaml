@@ -29,6 +29,15 @@ spec:
       containers:
         - name: weather-app
           image: w3athr/weather-app:v3.3
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+              ephemeral-storage: "50Mi"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+              ephemeral-storage: "100Mi"
           ports:
             - containerPort: 8000
           env:
@@ -45,3 +54,5 @@ spec:
                 secretKeyRef:
                   name: api-key-secret
                   key: api-key
+      imagePullSecrets:
+        - name: dockerhub-pat
