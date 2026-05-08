@@ -40,19 +40,10 @@ spec:
               ephemeral-storage: "100Mi"
           ports:
             - containerPort: 8000
-          env:
-            - name: AUTHOR
-              value: "egor.volkov"
-            - name: VERSION
-              value: "3.3.0"
-            - name: SERVICE
-              value: weather
-            - name: PORT
-              value: "8000"
-            - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: api-key-secret
-                  key: api-key
+          envFrom:
+            - configMapRef:
+                name: weather-configmap
+            - secretRef:
+                name: api-key-secret
       imagePullSecrets:
         - name: dockerhub-pat
