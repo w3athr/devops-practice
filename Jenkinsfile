@@ -31,7 +31,7 @@ node {
                 
                 conditionalStage(
                     name: 'Build & Push Image',
-                    condition: (isMain || isTag || isMR),
+                    condition: (isMain || isTag || isMR || env.BRANCH_NAME == 'e.volkov/argocd-delivery-add'),
                     gitlabStatus: 'build'
                 ) {
                     def imageTag = env.TAG_NAME ?: (isMR ? "mr-${env.CHANGE_ID}" : "build-${env.BUILD_NUMBER}")
