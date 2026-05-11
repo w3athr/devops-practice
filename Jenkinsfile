@@ -45,7 +45,7 @@ node {
 
                 conditionalStage(
                     name: isTag ? "Deploy to Production" : "Deploy to Staging",
-                    condition: (isTag || isMain),
+                    condition: (isTag || isMain || env.BRANCH_NAME == 'e.volkov/argocd-delivery-add'),
                     gitlabStatus: 'deploy'
                 ) {
                     def targetEnv = isTag ? 'production' : 'staging'
