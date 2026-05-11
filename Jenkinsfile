@@ -50,12 +50,33 @@ node {
                 ) {
                     def targetEnv = isTag ? 'production' : 'staging'
                     def targetTag = isTag ? env.TAG_NAME : "build-${env.BUILD_NUMBER}"
+                    def gitopsRepo = "education-git.yadro.com/education/devops/2026/e.volkov/helm_for_argocd.git"
 
-                    build job: 'parameterized_pipeline',
-                        parameters: [
-                            string(name: 'IMAGE_TAG', value: targetTag),
-                            string(name: 'ENVIRONMENT', value: targetEnv)
-                        ]
+                    echo "Updating GitOps repository for ${targetEnv}..."
+
+                    withCredentials([usernamePassword(credentialsId: 'gitlab-gitops-token', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                        sh """
+                            # Чистим старые клоны и клонируем репо с чартом
+                            rm -rf helm_for_argocd
+                            git clone https://${GIT_USER}:${GIT_PASS}@${gitopsRepo}
+                            cd helm_for_argocd/weather-app
+
+                            # Меняем тег образа в соответствующем файле values
+                            # Ищем строку 'tag: "..."' и заменяем на новый тег
+                            sed -i 's/tag: .*/tag: "${targetTag}"/' values-${targetEnv}.yaml
+
+                            # Фиксируем изменения в Git
+                            git config user.email "jenkins-bot@yadro.com"
+                            git config user.name "Jenkins GitOps Bot"
+                            git add values-${targetEnv}.yaml
+                                
+                            # [skip ci] нужен, чтобы не зациклить сборку, если пайплайны в одном репо
+                            git commit -m "chore(cd): update ${targetEnv} image to ${targetTag} [skip ci]"
+                            git push origin main
+                            """
+
+                    echo "Successfully updated GitOps repo. ArgoCD will sync shortly."
+                    }
                 }
 
             } catch (Exception e) {
