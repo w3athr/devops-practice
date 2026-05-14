@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weather-configmap
+  namespace: weather-app
+data:
+  AUTHOR: "egor.volkov"
+  VERSION: "3.3.0"
+  SERVICE: "weather"
+  PORT: "8000"
