@@ -35,6 +35,25 @@ func main() {
 	r.GET("/info", h.GetInfo)
 	r.GET("/info/weather", h.GetWeather)
 
+	// 4. kubernetes probes
+	r.GET("/health/live", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "alive",
+		})
+	})
+
+	r.GET("/health/ready", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "ready",
+		})
+	})
+
+	r.GET("/health/startup", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "started",
+		})
+	})
+
 	port := getEnv("PORT", "8000")
 
 	if _, err := strconv.Atoi(port); err != nil {
