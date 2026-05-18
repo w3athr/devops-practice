@@ -78,7 +78,7 @@ func getAPIKey() string {
 	}
 
 	// 2. check if exists in .env
-	if key := os.Getenv("API_KEY"); key != "" {
+	if key := strings.TrimSpace(os.Getenv("API_KEY")); key != "" {
 		return key
 	}
 
